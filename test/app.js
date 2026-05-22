@@ -92,6 +92,7 @@ let TEST_METADATA = {
     '24': { title: 'Ұлы Отан соғысы', subject: 'Қазақстан тарихы', file: 'test/data/ulyOtan.json' },
     '25': { title: 'Тоқырау жылдарындағы Қазақстан', subject: 'Қазақстан тарихы', file: 'test/data/tokyrau.json' },
     '26': { title: '1930 жылдардағы қоғамдық-саяси', subject: 'Қазақстан тарихы', file: 'test/data/1930.json' },
+    '32': { title: '1916-1920 жылдардағы Қазақстан', subject: 'Қазақстан тарихы', file: 'test/data/1916.json' },
     '27': { title: '2025 мамырдағы тест Физ/Мат', subject: 'Қазақстан тарихы', file: 'test/data/2025mayarai.json' },
     '28': { title: '2025 мамырдағы тест Био/Хим', subject: 'Қазақстан тарихы', file: 'test/data/2025mayaruzhan.json' },
     '29': { title: '2025 мамырдағы тест Инфо/Мат', subject: 'Қазақстан тарихы', file: 'test/data/2025maynurseit.json' },
