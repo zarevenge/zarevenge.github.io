@@ -188,6 +188,7 @@
                     <li onclick="openPage('home')" id="nav-home" data-nav-target="home" class="active">Басты бет</li>
                 <li onclick="openPage('profile')" id="nav-profile" data-nav-target="profile">Профиль</li>
                 <li onclick="openPage('test')" id="nav-test" data-nav-target="test">Тест</li>
+                <li onclick="openPage('anki')" id="nav-anki" data-nav-target="anki">Anki</li>
                 <li onclick="openPage('settings')" id="nav-settings" data-nav-target="settings">Баптаулар</li>
                 <li onclick="openPage('ranking')" id="nav-ranking" data-nav-target="ranking">Рейтинг</li>
                 <li onclick="openPage('blocks')" id="nav-blocks" data-nav-target="blocks">Блоктар</li>
@@ -272,6 +273,16 @@
             <ul class="topics-list" id="test-history-topics"></ul>
             <h1>Информатика</h1>
             <ul class="topics-list" id="test-informatics-topics"></ul>
+            </section>
+            <section id="anki" class="content-page">
+            <header class="materials-head">
+                <h1>Anki</h1>
+                <p>Тест бөліміндегідей тақырыпты таңдаңыз. Ішінде қарапайым карточка режимі ашылады.</p>
+            </header>
+            <div id="anki-topic-groups" class="blocks-topic-groups">
+                <h1>Қазақстан тарихы</h1>
+                <ul class="topics-list blocks-topics-list" id="anki-history-topics"></ul>
+            </div>
             </section>
             <section id="settings" class="content-page settings-page">
             <h1>Баптаулар</h1>
@@ -884,6 +895,7 @@
         <div class="mobile-more-sheet" id="mobile-more-sheet" hidden onclick="closeMobileMoreMenu(event)">
             <div class="mobile-more-panel" onclick="event.stopPropagation()">
                 <button type="button" class="mobile-more-item" data-nav-target="profile" onclick="openPage('profile')">Профиль</button>
+                <button type="button" class="mobile-more-item" data-nav-target="anki" onclick="openPage('anki')">Anki</button>
                 <button type="button" class="mobile-more-item" data-nav-target="settings" onclick="openPage('settings')">Баптаулар</button>
                 <button type="button" class="mobile-more-item" data-nav-target="math-formulas" onclick="openPage('math-formulas')">Формулалар</button>
                 <button type="button" class="mobile-more-item danger" onclick="logoutUser()">Шығу</button>
@@ -1594,6 +1606,50 @@ h1 { font-size: 32px; margin-bottom: 30px; }
       <div class="runner-stage">
         <div class="question" id="question">Жүктелуде...</div>
         <div class="options" id="options"></div>
+      </div>
+    </div>
+  </div>
+  <div id="anki-app" class="anki-app" style="display: none;">
+    <div class="anki-shell">
+      <div class="anki-topbar">
+        <button type="button" class="anki-topbar-btn" onclick="closeAnkiViewer()">Артқа</button>
+        <div class="anki-topbar-center">
+          <div id="anki-runner-title" class="anki-topbar-title">Anki</div>
+          <div id="anki-runner-meta" class="anki-topbar-meta">0 / 0</div>
+        </div>
+        <div class="anki-topbar-actions">
+          <button type="button" id="anki-order-btn" class="anki-topbar-btn" onclick="toggleAnkiOrderMode()">Ретімен</button>
+          <button type="button" class="anki-topbar-btn" onclick="resetAnkiProgress()">Reset</button>
+        </div>
+      </div>
+
+      <div class="anki-stage">
+        <button type="button" id="anki-runner-card" class="anki-runner-card">
+          <span class="anki-runner-face anki-runner-front">
+            <span id="anki-runner-front-text" class="anki-runner-text">Тақырыпты таңдаңыз</span>
+          </span>
+          <span class="anki-runner-face anki-runner-back" hidden>
+            <span id="anki-runner-back-text" class="anki-runner-text">Жауап осында шығады</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="anki-bottom-actions">
+        <button type="button" id="anki-show-answer-btn" class="anki-show-answer-btn" onclick="handleAnkiPrimaryAction()">Show answer</button>
+        <div id="anki-rating-row" class="anki-rating-row" hidden>
+          <button type="button" class="anki-rate-option" onclick="ankiAgain()">
+            <span class="anki-rate-time">&lt;1m</span>
+            <span class="anki-rate-label">Again</span>
+          </button>
+          <button type="button" class="anki-rate-option" onclick="ankiHard()">
+            <span class="anki-rate-time">&lt;6m</span>
+            <span class="anki-rate-label">Hard</span>
+          </button>
+          <button type="button" class="anki-rate-option" onclick="ankiGood()">
+            <span class="anki-rate-time">&lt;10m</span>
+            <span class="anki-rate-label">Good</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

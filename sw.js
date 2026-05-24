@@ -1,4 +1,4 @@
-const CACHE_NAME = "ubt-runtime-cache-v4";
+const CACHE_NAME = "ubt-runtime-cache-v5";
 
 const APP_SHELL_ASSETS = [
   "./",
@@ -36,6 +36,12 @@ const DATA_ASSETS = [
   "./materials-data/topics/inf-4-1.json",
   "./materials-data/topics/inf-4-3.json",
   "./materials-data/topics/math-algebra-base.json",
+  "./blocks-data/anki/history/1916-1920.json",
+  "./blocks-data/anki/history/1920-1930.json",
+  "./blocks-data/anki/history/1930.json",
+  "./blocks-data/anki/history/1941-1945.json",
+  "./blocks-data/anki/history/1945-85.json",
+  "./blocks-data/anki/history/1991-2025.json",
   "./test/data/1.1.json",
   "./test/data/1.2.json",
   "./test/data/1.3.json",

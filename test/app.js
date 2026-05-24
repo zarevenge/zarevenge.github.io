@@ -207,6 +207,490 @@ function renderTestTopicLists() {
 renderTestTopicLists();
 loadExternalTestCatalog();
 
+const ANKI_METADATA = {
+    'history-1916-1920': {
+        title: '1916-1920 жылдардағы Қазақстан',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1916-1920.json'
+    },
+    'history-1920-1930': {
+        title: '1920-1930 жылдардағы Қазақстан',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1920-1930.json'
+    },
+    'history-1930': {
+        title: '1930 жылдардағы қоғамдық-саяси өмір',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1930.json'
+    },
+    'history-1941-1945': {
+        title: '1941-1945 жылдардағы Қазақстан',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1941-1945.json'
+    },
+    'history-1945-85': {
+        title: '1945-1985 жылдардағы Қазақстан',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1945-85.json'
+    },
+    'history-1991-2025': {
+        title: '1991-2025 жылдардағы Қазақстан',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/1991-2025.json'
+    }
+};
+
+const ankiState = {
+    activeDeckId: null,
+    cards: [],
+    originalCards: [],
+    currentCard: null,
+    flipped: false,
+    storage: {},
+    keyHandlerBound: false,
+    orderedMode: false
+};
+
+const ANKI_STORAGE_PREFIX = 'anki_progress_v1';
+const ANKI_ORDER_MODE_KEY = 'anki_order_mode_v1';
+const ANKI_MINUTE_MS = 60 * 1000;
+const ANKI_DAY_MS = 24 * 60 * 60 * 1000;
+
+function setActiveAnkiTopic(deckId) {
+    document.querySelectorAll('#anki-topic-groups li').forEach((item) => {
+        item.classList.toggle('active', item.dataset.ankiDeckId === deckId);
+    });
+}
+
+function renderAnkiTopicLists() {
+    const historyRoot = document.getElementById('anki-history-topics');
+    if (!historyRoot) return;
+
+    historyRoot.innerHTML = '';
+
+    Object.entries(ANKI_METADATA).forEach(([deckId, meta]) => {
+        if ((meta.subject || '').trim().toLowerCase() !== 'қазақстан тарихы') return;
+        const item = document.createElement('li');
+        item.textContent = meta.title;
+        item.dataset.ankiDeckId = deckId;
+        item.addEventListener('click', () => openAnkiDeck(deckId));
+        historyRoot.appendChild(item);
+    });
+}
+
+function normalizeAnkiCards(cards, deckId) {
+    if (!Array.isArray(cards)) return [];
+    return cards
+        .map((card, index) => ({
+            id: `${deckId}:${index}`,
+            front: String(card?.front || '').trim(),
+            back: String(card?.back || '').trim()
+        }))
+        .filter((card) => card.front && card.back);
+}
+
+function getAnkiStorageKey(deckId) {
+    return `${ANKI_STORAGE_PREFIX}:${deckId}`;
+}
+
+function loadAnkiOrderMode() {
+    try {
+        return localStorage.getItem(ANKI_ORDER_MODE_KEY) === 'ordered';
+    } catch (error) {
+        console.warn('Anki order mode load failed:', error);
+        return false;
+    }
+}
+
+function saveAnkiOrderMode() {
+    try {
+        localStorage.setItem(ANKI_ORDER_MODE_KEY, ankiState.orderedMode ? 'ordered' : 'random');
+    } catch (error) {
+        console.warn('Anki order mode save failed:', error);
+    }
+}
+
+function loadAnkiDeckProgress(deckId) {
+    try {
+        const raw = localStorage.getItem(getAnkiStorageKey(deckId));
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (error) {
+        console.warn('Anki progress parse failed:', error);
+        return {};
+    }
+}
+
+function saveAnkiDeckProgress() {
+    if (!ankiState.activeDeckId) return;
+    try {
+        localStorage.setItem(getAnkiStorageKey(ankiState.activeDeckId), JSON.stringify(ankiState.storage));
+    } catch (error) {
+        console.warn('Anki progress save failed:', error);
+    }
+}
+
+function getAnkiCardProgress(cardId) {
+    const progress = ankiState.storage[cardId];
+    return progress && typeof progress === 'object' ? progress : {};
+}
+
+function getAnkiCardStats(cardId) {
+    const progress = getAnkiCardProgress(cardId);
+    return {
+        dueAt: Number(progress.dueAt) || 0,
+        interval: Math.max(0, Number(progress.interval) || 0),
+        ease: Math.max(1.3, Number(progress.ease) || 2.5),
+        reps: Math.max(0, Number(progress.reps) || 0),
+        lapses: Math.max(0, Number(progress.lapses) || 0)
+    };
+}
+
+function buildDueAnkiCards() {
+    const now = Date.now();
+    const dueCards = ankiState.originalCards
+        .map((card) => {
+            const progress = getAnkiCardStats(card.id);
+            const dueAt = progress.dueAt;
+            return {
+                ...card,
+                dueAt
+            };
+        })
+        .filter((card) => card.dueAt <= now)
+        .sort((left, right) => left.dueAt - right.dueAt);
+
+    if (ankiState.orderedMode || dueCards.length < 2) {
+        return dueCards;
+    }
+
+    const shuffled = dueCards.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
+}
+
+function getNextAnkiDueAt() {
+    let nextDueAt = Infinity;
+    ankiState.originalCards.forEach((card) => {
+        const progress = getAnkiCardStats(card.id);
+        const dueAt = progress.dueAt;
+        if (dueAt > Date.now() && dueAt < nextDueAt) nextDueAt = dueAt;
+    });
+    return Number.isFinite(nextDueAt) ? nextDueAt : 0;
+}
+
+function formatAnkiWait(ms) {
+    const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+    if (totalSeconds < 60) return `<${totalSeconds}s`;
+    const totalMinutes = Math.ceil(totalSeconds / 60);
+    if (totalMinutes < 60) return `<${totalMinutes}m`;
+    const totalHours = Math.ceil(totalMinutes / 60);
+    if (totalHours < 24) return `<${totalHours}h`;
+    const totalDays = Math.ceil(totalHours / 24);
+    return `${totalDays}d`;
+}
+
+function updateAnkiBottomControls() {
+    const showAnswerButton = document.getElementById('anki-show-answer-btn');
+    const ratingRow = document.getElementById('anki-rating-row');
+    const hasCard = Boolean(ankiState.currentCard);
+
+    if (showAnswerButton) {
+        showAnswerButton.hidden = !hasCard;
+        showAnswerButton.disabled = !hasCard;
+        showAnswerButton.textContent = ankiState.flipped ? 'Easy' : 'Show answer';
+    }
+
+    if (ratingRow) {
+        ratingRow.hidden = !hasCard || !ankiState.flipped;
+    }
+}
+
+function updateAnkiOrderButton() {
+    const orderButton = document.getElementById('anki-order-btn');
+    if (!orderButton) return;
+    orderButton.textContent = ankiState.orderedMode ? 'Аралас' : 'Ретімен';
+}
+
+function handleAnkiHotkeys(event) {
+    if (!document.body.classList.contains('is-anki-runner')) return;
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const target = event.target;
+    const tagName = target && typeof target.tagName === 'string' ? target.tagName.toLowerCase() : '';
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || (target && target.isContentEditable)) {
+        return;
+    }
+
+    if ((event.key === ' ' || event.key === 'Enter') && ankiState.currentCard) {
+        event.preventDefault();
+        handleAnkiPrimaryAction();
+        return;
+    }
+
+    if (!ankiState.currentCard || !ankiState.flipped) return;
+
+    if (event.key === '1') {
+        event.preventDefault();
+        ankiAgain();
+    } else if (event.key === '2') {
+        event.preventDefault();
+        ankiHard();
+    } else if (event.key === '3') {
+        event.preventDefault();
+        ankiGood();
+    } else if (event.key === '4') {
+        event.preventDefault();
+        ankiEasy();
+    }
+}
+
+function bindAnkiHotkeys() {
+    if (ankiState.keyHandlerBound) return;
+    document.addEventListener('keydown', handleAnkiHotkeys);
+    ankiState.keyHandlerBound = true;
+}
+
+function selectNextAnkiCard() {
+    ankiState.cards = buildDueAnkiCards();
+    ankiState.currentCard = ankiState.cards[0] || null;
+    ankiState.flipped = false;
+}
+
+function toggleAnkiOrderMode() {
+    ankiState.orderedMode = !ankiState.orderedMode;
+    saveAnkiOrderMode();
+    selectNextAnkiCard();
+    updateAnkiViewer();
+}
+
+function updateAnkiViewer() {
+    const cardButton = document.getElementById('anki-runner-card');
+    const frontFace = cardButton ? cardButton.querySelector('.anki-runner-front') : null;
+    const backFace = cardButton ? cardButton.querySelector('.anki-runner-back') : null;
+    const frontText = document.getElementById('anki-runner-front-text');
+    const backText = document.getElementById('anki-runner-back-text');
+    const title = document.getElementById('anki-runner-title');
+    const meta = document.getElementById('anki-runner-meta');
+
+    const deckMeta = ANKI_METADATA[ankiState.activeDeckId];
+    const currentCard = ankiState.currentCard;
+
+    if (title) {
+        title.textContent = deckMeta ? deckMeta.title : 'Anki карточкалары';
+    }
+    updateAnkiOrderButton();
+
+    if (!currentCard) {
+        const nextDueAt = getNextAnkiDueAt();
+        if (frontText) {
+            frontText.textContent = nextDueAt
+                ? `Қазір due карточка жоқ.\nКелесі карта: ${formatAnkiWait(nextDueAt - Date.now())}`
+                : 'Бұл тақырыпта карточка табылмады';
+        }
+        if (backText) backText.textContent = 'Басқа тақырып таңдаңыз';
+        if (meta) meta.textContent = `Due: 0`;
+        if (frontFace) frontFace.hidden = false;
+        if (backFace) backFace.hidden = true;
+        updateAnkiBottomControls();
+        return;
+    }
+
+    if (frontText) frontText.textContent = currentCard.front;
+    if (backText) backText.textContent = currentCard.back;
+    if (meta) meta.textContent = `Due: ${ankiState.cards.length}`;
+    if (frontFace) frontFace.hidden = false;
+    if (backFace) backFace.hidden = !ankiState.flipped;
+    updateAnkiBottomControls();
+}
+
+async function openAnkiDeck(deckId) {
+    const deckMeta = ANKI_METADATA[deckId];
+    if (!deckMeta) return;
+    setActiveAnkiTopic(deckId);
+    ankiState.orderedMode = loadAnkiOrderMode();
+
+    try {
+        const response = await fetch(deckMeta.file, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const cards = normalizeAnkiCards(await response.json(), deckId);
+        ankiState.activeDeckId = deckId;
+        ankiState.originalCards = cards.slice();
+        ankiState.storage = loadAnkiDeckProgress(deckId);
+        selectNextAnkiCard();
+        updateAnkiViewer();
+
+        const ankiApp = document.getElementById('anki-app');
+        if (ankiApp) ankiApp.style.display = 'block';
+        document.body.classList.add('is-anki-runner');
+
+        try {
+            const target = document.documentElement;
+            if (target.requestFullscreen && !document.fullscreenElement) {
+                await target.requestFullscreen();
+            } else if (target.webkitRequestFullscreen && !document.webkitFullscreenElement) {
+                target.webkitRequestFullscreen();
+            }
+        } catch (error) {
+            console.warn('Anki fullscreen іске қосылмады:', error);
+        }
+    } catch (error) {
+        console.error('Anki жүктеу қатесі:', error);
+        ankiState.activeDeckId = null;
+        ankiState.cards = [];
+        ankiState.originalCards = [];
+        ankiState.currentCard = null;
+        ankiState.flipped = false;
+        ankiState.storage = {};
+        setActiveAnkiTopic(null);
+        updateAnkiViewer();
+    }
+}
+
+function toggleAnkiFlip() {
+    if (!ankiState.currentCard) return;
+    ankiState.flipped = !ankiState.flipped;
+    updateAnkiViewer();
+}
+
+function showAnkiAnswer() {
+    if (!ankiState.currentCard) return;
+    ankiState.flipped = true;
+    updateAnkiViewer();
+}
+
+function handleAnkiPrimaryAction() {
+    if (!ankiState.currentCard) return;
+    if (!ankiState.flipped) {
+        showAnkiAnswer();
+        return;
+    }
+    ankiEasy();
+}
+
+function computeAnkiSchedule(stats, rating) {
+    const now = Date.now();
+    const currentInterval = stats.interval;
+    const currentEase = stats.ease;
+    const currentReps = stats.reps;
+    const currentLapses = stats.lapses;
+
+    if (rating === 'again') {
+        return {
+            dueAt: now + ANKI_MINUTE_MS,
+            interval: ANKI_MINUTE_MS,
+            ease: Math.max(1.3, currentEase - 0.2),
+            reps: 0,
+            lapses: currentLapses + 1
+        };
+    }
+
+    if (rating === 'hard') {
+        const nextInterval = currentInterval > 0
+            ? Math.max(6 * ANKI_MINUTE_MS, Math.round(currentInterval * 1.2))
+            : 6 * ANKI_MINUTE_MS;
+        return {
+            dueAt: now + nextInterval,
+            interval: nextInterval,
+            ease: Math.max(1.3, currentEase - 0.05),
+            reps: currentReps + 1,
+            lapses: currentLapses
+        };
+    }
+
+    if (rating === 'good') {
+        const nextInterval = currentInterval > 0
+            ? Math.max(10 * ANKI_MINUTE_MS, Math.round(currentInterval * currentEase))
+            : 10 * ANKI_MINUTE_MS;
+        return {
+            dueAt: now + nextInterval,
+            interval: nextInterval,
+            ease: currentEase,
+            reps: currentReps + 1,
+            lapses: currentLapses
+        };
+    }
+
+    const easyEase = currentEase + 0.15;
+    const nextInterval = currentInterval > 0
+        ? Math.max(3 * ANKI_DAY_MS, Math.round(currentInterval * easyEase * 1.3))
+        : 3 * ANKI_DAY_MS;
+    return {
+        dueAt: now + nextInterval,
+        interval: nextInterval,
+        ease: easyEase,
+        reps: currentReps + 1,
+        lapses: currentLapses
+    };
+}
+
+function applyAnkiRating(rating) {
+    if (!ankiState.currentCard || !ankiState.activeDeckId) return;
+    const stats = getAnkiCardStats(ankiState.currentCard.id);
+    const nextState = computeAnkiSchedule(stats, rating);
+
+    ankiState.storage[ankiState.currentCard.id] = {
+        ...nextState,
+        rating,
+        updatedAt: Date.now()
+    };
+    saveAnkiDeckProgress();
+    selectNextAnkiCard();
+    updateAnkiViewer();
+}
+
+function resetAnkiProgress() {
+    if (!ankiState.activeDeckId) return;
+    ankiState.storage = {};
+    saveAnkiDeckProgress();
+    selectNextAnkiCard();
+    updateAnkiViewer();
+}
+
+function closeAnkiViewer() {
+    const ankiApp = document.getElementById('anki-app');
+    if (ankiApp) ankiApp.style.display = 'none';
+    ankiState.cards = [];
+    ankiState.originalCards = [];
+    ankiState.currentCard = null;
+    ankiState.flipped = false;
+    ankiState.storage = {};
+    document.body.classList.remove('is-anki-runner');
+    updateAnkiViewer();
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+    } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+    }
+}
+
+function ankiAgain() {
+    applyAnkiRating('again');
+}
+
+function ankiHard() {
+    applyAnkiRating('hard');
+}
+
+function ankiGood() {
+    applyAnkiRating('good');
+}
+
+function ankiEasy() {
+    applyAnkiRating('easy');
+}
+
+renderAnkiTopicLists();
+bindAnkiHotkeys();
+
 const RUNNER_SECONDS_PER_QUESTION = {
     instant: 45,
     exam: 75,
