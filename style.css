@@ -269,9 +269,9 @@ h1 {
 }
 
 .anki-rating-row {
-    width: min(420px, 100%);
+    width: min(180px, 100%);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
 }
 

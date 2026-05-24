@@ -402,7 +402,7 @@ function updateAnkiBottomControls() {
     if (showAnswerButton) {
         showAnswerButton.hidden = !hasCard;
         showAnswerButton.disabled = !hasCard;
-        showAnswerButton.textContent = ankiState.flipped ? 'Easy' : 'Show answer';
+        showAnswerButton.textContent = ankiState.flipped ? 'Білемін' : 'Show answer';
     }
 
     if (ratingRow) {
@@ -438,12 +438,6 @@ function handleAnkiHotkeys(event) {
         event.preventDefault();
         ankiAgain();
     } else if (event.key === '2') {
-        event.preventDefault();
-        ankiHard();
-    } else if (event.key === '3') {
-        event.preventDefault();
-        ankiGood();
-    } else if (event.key === '4') {
         event.preventDefault();
         ankiEasy();
     }
@@ -592,36 +586,10 @@ function computeAnkiSchedule(stats, rating) {
         };
     }
 
-    if (rating === 'hard') {
-        const nextInterval = currentInterval > 0
-            ? Math.max(6 * ANKI_MINUTE_MS, Math.round(currentInterval * 1.2))
-            : 6 * ANKI_MINUTE_MS;
-        return {
-            dueAt: now + nextInterval,
-            interval: nextInterval,
-            ease: Math.max(1.3, currentEase - 0.05),
-            reps: currentReps + 1,
-            lapses: currentLapses
-        };
-    }
-
-    if (rating === 'good') {
-        const nextInterval = currentInterval > 0
-            ? Math.max(10 * ANKI_MINUTE_MS, Math.round(currentInterval * currentEase))
-            : 10 * ANKI_MINUTE_MS;
-        return {
-            dueAt: now + nextInterval,
-            interval: nextInterval,
-            ease: currentEase,
-            reps: currentReps + 1,
-            lapses: currentLapses
-        };
-    }
-
     const easyEase = currentEase + 0.15;
     const nextInterval = currentInterval > 0
-        ? Math.max(3 * ANKI_DAY_MS, Math.round(currentInterval * easyEase * 1.3))
-        : 3 * ANKI_DAY_MS;
+        ? Math.max(2 * ANKI_DAY_MS, Math.round(currentInterval * easyEase * 1.2))
+        : 2 * ANKI_DAY_MS;
     return {
         dueAt: now + nextInterval,
         interval: nextInterval,
@@ -674,14 +642,6 @@ function closeAnkiViewer() {
 
 function ankiAgain() {
     applyAnkiRating('again');
-}
-
-function ankiHard() {
-    applyAnkiRating('hard');
-}
-
-function ankiGood() {
-    applyAnkiRating('good');
 }
 
 function ankiEasy() {
