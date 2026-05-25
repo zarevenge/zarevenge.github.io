@@ -248,6 +248,8 @@ const ankiState = {
     flipped: false,
     storage: {},
     keyHandlerBound: false,
+    ratingButtonsBound: false,
+    ratingLocked: false,
     orderedMode: false
 };
 
@@ -397,17 +399,51 @@ function formatAnkiWait(ms) {
 function updateAnkiBottomControls() {
     const showAnswerButton = document.getElementById('anki-show-answer-btn');
     const ratingRow = document.getElementById('anki-rating-row');
+    const bottomActions = document.getElementById('anki-bottom-actions');
     const hasCard = Boolean(ankiState.currentCard);
+    const isRating = hasCard && ankiState.flipped;
+
+    if (bottomActions) {
+        bottomActions.classList.toggle('is-rating', isRating);
+    }
 
     if (showAnswerButton) {
-        showAnswerButton.hidden = !hasCard;
-        showAnswerButton.disabled = !hasCard;
-        showAnswerButton.textContent = ankiState.flipped ? 'Білемін' : 'Show answer';
+        const hideShowAnswer = !hasCard || isRating;
+        showAnswerButton.hidden = hideShowAnswer;
+        showAnswerButton.disabled = !hasCard || ankiState.ratingLocked;
+        showAnswerButton.textContent = 'Show answer';
     }
 
     if (ratingRow) {
-        ratingRow.hidden = !hasCard || !ankiState.flipped;
+        ratingRow.hidden = !isRating;
+        ratingRow.querySelectorAll('.anki-rate-option').forEach((button) => {
+            button.disabled = !isRating || ankiState.ratingLocked;
+        });
     }
+}
+
+function handleAnkiRatingPress(rating) {
+    if (ankiState.ratingLocked || !ankiState.currentCard || !ankiState.flipped) return;
+    if (rating === 'again') {
+        ankiAgain();
+    } else if (rating === 'easy') {
+        ankiEasy();
+    }
+}
+
+function bindAnkiRatingButtons() {
+    if (ankiState.ratingButtonsBound) return;
+    const ratingRow = document.getElementById('anki-rating-row');
+    if (!ratingRow) return;
+
+    ratingRow.addEventListener('pointerup', (event) => {
+        const button = event.target.closest('[data-anki-rating]');
+        if (!button || button.disabled) return;
+        event.preventDefault();
+        handleAnkiRatingPress(button.dataset.ankiRating);
+    });
+
+    ankiState.ratingButtonsBound = true;
 }
 
 function updateAnkiOrderButton() {
@@ -464,6 +500,7 @@ function toggleAnkiOrderMode() {
 
 function updateAnkiViewer() {
     const cardButton = document.getElementById('anki-runner-card');
+    const stack = document.getElementById('anki-runner-stack');
     const frontFace = cardButton ? cardButton.querySelector('.anki-runner-front') : null;
     const backFace = cardButton ? cardButton.querySelector('.anki-runner-back') : null;
     const frontText = document.getElementById('anki-runner-front-text');
@@ -473,6 +510,11 @@ function updateAnkiViewer() {
 
     const deckMeta = ANKI_METADATA[ankiState.activeDeckId];
     const currentCard = ankiState.currentCard;
+    const isRevealed = Boolean(currentCard && ankiState.flipped);
+
+    if (stack) {
+        stack.classList.toggle('is-revealed', isRevealed);
+    }
 
     if (title) {
         title.textContent = deckMeta ? deckMeta.title : 'Anki карточкалары';
@@ -490,6 +532,7 @@ function updateAnkiViewer() {
         if (meta) meta.textContent = `Due: 0`;
         if (frontFace) frontFace.hidden = false;
         if (backFace) backFace.hidden = true;
+        if (stack) stack.classList.remove('is-revealed');
         updateAnkiBottomControls();
         return;
     }
@@ -498,7 +541,7 @@ function updateAnkiViewer() {
     if (backText) backText.textContent = currentCard.back;
     if (meta) meta.textContent = `Due: ${ankiState.cards.length}`;
     if (frontFace) frontFace.hidden = false;
-    if (backFace) backFace.hidden = !ankiState.flipped;
+    if (backFace) backFace.hidden = !isRevealed;
     updateAnkiBottomControls();
 }
 
@@ -524,17 +567,6 @@ async function openAnkiDeck(deckId) {
         const ankiApp = document.getElementById('anki-app');
         if (ankiApp) ankiApp.style.display = 'block';
         document.body.classList.add('is-anki-runner');
-
-        try {
-            const target = document.documentElement;
-            if (target.requestFullscreen && !document.fullscreenElement) {
-                await target.requestFullscreen();
-            } else if (target.webkitRequestFullscreen && !document.webkitFullscreenElement) {
-                target.webkitRequestFullscreen();
-            }
-        } catch (error) {
-            console.warn('Anki fullscreen іске қосылмады:', error);
-        }
     } catch (error) {
         console.error('Anki жүктеу қатесі:', error);
         ankiState.activeDeckId = null;
@@ -600,7 +632,11 @@ function computeAnkiSchedule(stats, rating) {
 }
 
 function applyAnkiRating(rating) {
-    if (!ankiState.currentCard || !ankiState.activeDeckId) return;
+    if (ankiState.ratingLocked || !ankiState.currentCard || !ankiState.activeDeckId) return;
+
+    ankiState.ratingLocked = true;
+    updateAnkiBottomControls();
+
     const stats = getAnkiCardStats(ankiState.currentCard.id);
     const nextState = computeAnkiSchedule(stats, rating);
 
@@ -612,6 +648,11 @@ function applyAnkiRating(rating) {
     saveAnkiDeckProgress();
     selectNextAnkiCard();
     updateAnkiViewer();
+
+    window.setTimeout(() => {
+        ankiState.ratingLocked = false;
+        updateAnkiBottomControls();
+    }, 320);
 }
 
 function resetAnkiProgress() {
@@ -629,15 +670,10 @@ function closeAnkiViewer() {
     ankiState.originalCards = [];
     ankiState.currentCard = null;
     ankiState.flipped = false;
+    ankiState.ratingLocked = false;
     ankiState.storage = {};
     document.body.classList.remove('is-anki-runner');
     updateAnkiViewer();
-
-    if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-    } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-    }
 }
 
 function ankiAgain() {
@@ -650,6 +686,7 @@ function ankiEasy() {
 
 renderAnkiTopicLists();
 bindAnkiHotkeys();
+bindAnkiRatingButtons();
 
 const RUNNER_SECONDS_PER_QUESTION = {
     instant: 45,
