@@ -237,6 +237,11 @@ const ANKI_METADATA = {
         title: '1991-2025 жылдардағы Қазақстан',
         subject: 'Қазақстан тарихы',
         file: 'blocks-data/anki/history/1991-2025.json'
+    },
+    'wowPlovMenu': {
+        title: 'Wow Plov Menu',
+        subject: 'Қазақстан тарихы',
+        file: 'blocks-data/anki/history/wow.json'
     }
 };
 
