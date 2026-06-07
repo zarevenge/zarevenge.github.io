@@ -276,17 +276,6 @@ h1 {
     height: auto;
     max-height: 58%;
     overflow-y: auto;
-    padding-bottom: 2px;
-}
-
-.anki-runner-stack.is-revealed .anki-runner-front::after {
-    content: '';
-    display: block;
-    width: 100vw;
-    height: 1.5px;
-    margin: 14px calc(50% - 50vw) 0;
-    background: rgba(32, 33, 36, 0.05);
-    flex-shrink: 0;
 }
 
 .anki-runner-stack.is-revealed .anki-runner-back:not([hidden]) {
@@ -294,7 +283,6 @@ h1 {
     min-height: 0;
     height: auto;
     overflow-y: auto;
-    padding-top: 2px;
 }
 
 .anki-runner-stack.is-revealed .anki-runner-back:not([hidden]) .anki-runner-text {
@@ -302,7 +290,17 @@ h1 {
 }
 
 .anki-runner-divider {
-    display: none !important;
+    display: none;
+    flex-shrink: 0;
+    width: 100%;
+    height: 1px;
+    margin: 14px 0 0;
+    border: 0;
+    background: rgba(32, 33, 36, 0.12);
+}
+
+.anki-runner-stack.is-revealed .anki-runner-divider {
+    display: block;
 }
 
 .anki-runner-text {
@@ -2000,7 +1998,7 @@ h1 {
         max-height: 52%;
     }
 
-    .anki-runner-stack.is-revealed .anki-runner-front::after {
+    .anki-runner-divider {
         margin-top: 12px;
     }
 

@@ -401,6 +401,20 @@ function formatAnkiWait(ms) {
     return `${totalDays}d`;
 }
 
+function escapeAnkiHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderAnkiCardText(element, text) {
+    if (!element) return;
+    element.innerHTML = escapeAnkiHtml(text).replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+}
+
 function updateAnkiBottomControls() {
     const showAnswerButton = document.getElementById('anki-show-answer-btn');
     const ratingRow = document.getElementById('anki-rating-row');
@@ -542,8 +556,8 @@ function updateAnkiViewer() {
         return;
     }
 
-    if (frontText) frontText.textContent = currentCard.front;
-    if (backText) backText.textContent = currentCard.back;
+    renderAnkiCardText(frontText, currentCard.front);
+    renderAnkiCardText(backText, currentCard.back);
     if (meta) meta.textContent = `Due: ${ankiState.cards.length}`;
     if (frontFace) frontFace.hidden = false;
     if (backFace) backFace.hidden = !isRevealed;
