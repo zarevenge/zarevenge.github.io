@@ -114,6 +114,7 @@ let TEST_METADATA = {
 //    '164': { title: 'Жүзден жүйрік 40 (инфо)', subject: 'Информатика', file: 'test/data/juz40info.json' }
     '165': { title: 'Excel тесті', subject: 'Информатика', file: 'test/data/excel.json' },
     '166': { title: 'HTML-CSS-JS-Python', subject: 'Информатика', file: 'test/data/imported/html-css-js-python.json' },
+    '267': { title: 'Географиялық зерттеу әдістері', subject: 'Қазақстан тарихы', file: 'test/data/Geography_Dalalik_Adisteri.json' },
 };
 
 function buildTestFileMap() {
