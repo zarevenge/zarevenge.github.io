@@ -238,10 +238,10 @@ const ANKI_METADATA = {
         subject: 'Қазақстан тарихы',
         file: 'blocks-data/anki/history/1991-2025.json'
     },
-    'wowPlovMenu': {
-        title: 'Wow Plov Menu',
+    'ezhelgi': {
+        title: 'Ежелгі Қазақстан',
         subject: 'Қазақстан тарихы',
-        file: 'blocks-data/anki/history/wow.json'
+        file: 'blocks-data/anki/history/ezhelgi.json'
     }
 };
 
